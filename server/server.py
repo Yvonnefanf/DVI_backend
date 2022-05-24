@@ -5,24 +5,28 @@
 # TODO change to timevis format
 # TODO set a base class for some trainer functions... we dont need too many hyperparameters for frontend
 
+from PIL import Image
+import matplotlib.pyplot as plt
+
 from unicodedata import name
 from flask import request, Response, Flask, jsonify, make_response
 from flask_cors import CORS, cross_origin
-
+import base64
 import os
 import sys
 import json
 import torch
 import pandas as pd
 import numpy as np
-import tensorflow as tf
-from umap.umap_ import find_ab_params
+
+# import tensorflow as tf
+# from umap.umap_ import find_ab_params
 from sqlalchemy import create_engine, text
 
 from antlr4 import *
-# from MyGrammar.MyGrammarLexer import MyGrammarLexer
-# from MyGrammar.MyGrammarParser import MyGrammarParser
-# from MyGrammarAdapter import MyGrammarPrintListener
+# import MyGrammarLexer
+# import MyGrammarParser
+# import MyGrammarPrintListener
 
 sys.path.append("..")
 from singleVis.SingleVisualizationModel import SingleVisualizationModel
@@ -79,8 +83,8 @@ def load():
     model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
     negative_sample_rate = 5
     min_dist = .1
-    _a, _b = find_ab_params(1.0, min_dist)
-    umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a, _b, repulsion_strength=1.0)
+    # _a, _b = find_ab_params(1.0, min_dist)
+    umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a=[1.0], _b=[1.0], repulsion_strength=1.0)
     recon_loss_fn = ReconstructionLoss(beta=1.0)
     criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 
@@ -207,8 +211,8 @@ def update_projection():
     model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
     negative_sample_rate = 5
     min_dist = .1
-    _a, _b = find_ab_params(1.0, min_dist)
-    umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a, _b, repulsion_strength=1.0)
+    # _a, _b = find_ab_params(1.0, min_dist)
+    umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a=[1.0], _b=[1.0], repulsion_strength=1.0)
     recon_loss_fn = ReconstructionLoss(beta=1.0)
     criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 
@@ -249,14 +253,21 @@ def update_projection():
     color = color.astype(int).tolist()
 
     # TODO fix its structure
-    evaluation = evaluator.get_eval(file_name="test_evaluation")
+    # evaluation = evaluator.get_eval(file_name="test_evaluation")
     eval_new = dict()
-    eval_new["nn_train_15"] = evaluation["15"]['nn_train'][str(EPOCH)]
-    eval_new['nn_test_15'] = evaluation["15"]['nn_test'][str(EPOCH)]
-    eval_new['bound_train_15'] = evaluation['15']['b_train'][str(EPOCH)]
-    eval_new['bound_test_15'] = evaluation['15']['b_test'][str(EPOCH)]
-    eval_new['ppr_train'] = evaluation['ppr_train'][str(EPOCH)]
-    eval_new['ppr_test'] = evaluation['ppr_test'][str(EPOCH)]
+    # eval_new["nn_train_15"] = evaluation["15"]['nn_train'][str(EPOCH)]
+    # eval_new['nn_test_15'] = evaluation["15"]['nn_test'][str(EPOCH)]
+    # eval_new['bound_train_15'] = evaluation['15']['b_train'][str(EPOCH)]
+    # eval_new['bound_test_15'] = evaluation['15']['b_test'][str(EPOCH)]
+    # eval_new['ppr_train'] = evaluation['ppr_train'][str(EPOCH)]
+    # eval_new['ppr_test'] = evaluation['ppr_test'][str(EPOCH)]
+    #  eval_new = dict()
+    eval_new["nn_train_15"] = 1
+    eval_new['nn_test_15'] = 1
+    eval_new['bound_train_15'] = 1
+    eval_new['bound_test_15'] = 1
+    eval_new['ppr_train'] = 1
+    eval_new['ppr_test'] = 1
 
     label_color_list = []
     label_list = []
@@ -324,10 +335,14 @@ def update_projection():
 @app.route('/query', methods=["POST"])
 @cross_origin()
 def filter():
-    # res = request.get_json()
-    # string = res["predicates"]["label"]
-    # CONTENT_PATH = os.path.normpath(res['content_path'])
+    res = request.get_json()
+    if(res['predicates']):
+        string = res["predicates"]["label"]
+        predicate = res["predicates"]["confidence"]
 
+
+    # CONTENT_PATH = os.path.normpath(res['content_path'])
+    # print(string,predicate)
     # data =  InputStream(string)
     # # lexer
     # lexer = MyGrammarLexer(data)
@@ -353,9 +368,194 @@ def filter():
     # for _, row in frame.iterrows():
     #     for col in frame.columns:
     #         result.append(int(row[col]))
-    result = np.arange(50000).tolist()
-    return make_response(jsonify({"selectedPoints":result}), 200)
+    result = np.arange(200).tolist()
+    even = []
+    for i in range(len(result)):
+        if result[i]%2==0:
+          even.append(result[i])    #append增加对象到列表末尾
+    return make_response(jsonify({"selectedPoints":even}), 200)
 
+
+@app.route('/al_query', methods=["POST"])
+@cross_origin()
+def al_query():
+    data = request.get_json()
+    # CONTENT_PATH = os.path.normpath(data['content_path'])
+    iteration = data["iteration"]
+    strategy = data["strategy"]
+    budget = int(data["budget"])
+    print(iteration,strategy,budget)
+    # sys.path.append(CONTENT_PATH)
+
+    result = np.arange(budget).tolist()
+    even = []
+    for i in range(len(result)):
+        if result[i]%2==0:
+          even.append(result[i])    #append增加对象到列表末尾
+    return make_response(jsonify({"selectedPoints":even}), 200)
+
+@app.route('/al_train', methods=["POST"])
+@cross_origin()
+def al_train():
+    res = request.get_json()
+    CONTENT_PATH = os.path.normpath(res['content_path'])
+    iteration = 3
+    predicates = {}
+    sys.path.append(CONTENT_PATH)
+
+    # load hyperparameters
+    config_file = os.path.join(CONTENT_PATH, "config.json")
+    try:
+        with open(config_file, "r") as f:
+            config = json.load(f)
+    except:
+        raise NameError("config file not exists...")
+
+    CLASSES = config["CLASSES"]
+    DATASET = config["DATASET"]
+    LAMBDA = config["TRAINING"]["LAMBDA"]
+    EPOCH_START = config["EPOCH_START"]
+    EPOCH_END = config["EPOCH_END"]
+    EPOCH_PERIOD = config["EPOCH_PERIOD"]
+    SUBJECT_MODEL_NAME = config["TRAINING"]["SUBJECT_MODEL_NAME"]
+    VIS_MODEL_NAME = config["VISUALIZATION"]["VIS_MODEL_NAME"]
+    RESOLUTION = config["VISUALIZATION"]["RESOLUTION"]
+    EPOCH = EPOCH_START + (iteration - 1)* EPOCH_PERIOD
+
+
+    # define hyperparameters
+    DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    import Model.model as subject_model
+    try:
+        net = eval("subject_model.{}()".format(SUBJECT_MODEL_NAME))
+    except:
+        raise NameError("No subject model found in model.py...")
+
+    data_provider = DataProvider(CONTENT_PATH, net, EPOCH_START, EPOCH_END, EPOCH_PERIOD, split=-1, device=DEVICE, verbose=1)
+    model = SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
+    negative_sample_rate = 5
+    min_dist = .1
+    # _a, _b = find_ab_params(1.0, min_dist)
+    umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a=[1.0], _b=[1.0], repulsion_strength=1.0)
+    recon_loss_fn = ReconstructionLoss(beta=1.0)
+    criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=.01, weight_decay=1e-5)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=.1)
+
+    trainer = SingleVisTrainer(model, criterion=criterion, optimizer=optimizer, lr_scheduler=lr_scheduler, edge_loader=None, DEVICE=DEVICE)
+    trainer.load(file_path=os.path.join(data_provider.model_path,"{}".format(VIS_MODEL_NAME)))
+    trainer.model.eval()
+
+    vis = visualizer(data_provider, trainer.model, RESOLUTION, 10, CLASSES)
+    evaluator = Evaluator(data_provider, trainer)
+    timevis = TimeVisBackend(data_provider, trainer, evaluator)
+
+
+    train_data = data_provider.train_representation(EPOCH)
+    test_data = data_provider.test_representation(EPOCH)
+    all_data = np.concatenate((train_data, test_data), axis=0)
+
+    embedding_2d = trainer.model.encoder(
+        torch.from_numpy(all_data).to(dtype=torch.float32, device=trainer.DEVICE)).cpu().detach().numpy().tolist()
+
+    train_labels = data_provider.train_labels(EPOCH)
+    test_labels = data_provider.test_labels(EPOCH)
+    labels = np.concatenate((train_labels, test_labels), axis=0).tolist()
+
+    training_data_number = train_data.shape[0]
+    testing_data_number = test_data.shape[0]
+    testing_data_index = list(range(training_data_number, training_data_number + testing_data_number))
+
+    grid, decision_view = vis.get_epoch_decision_view(EPOCH, RESOLUTION)
+
+    grid = grid.reshape((-1, 2)).tolist()
+    decision_view = decision_view * 255
+    decision_view = decision_view.reshape((-1, 3)).astype(int).tolist()
+
+    color = vis.get_standard_classes_color() * 255
+    color = color.astype(int).tolist()
+
+    # TODO fix its structure
+    # evaluation = evaluator.get_eval(file_name="test_evaluation")
+    eval_new = dict()
+    # eval_new["nn_train_15"] = evaluation["15"]['nn_train'][str(EPOCH)]
+    # eval_new['nn_test_15'] = evaluation["15"]['nn_test'][str(EPOCH)]
+    # eval_new['bound_train_15'] = evaluation['15']['b_train'][str(EPOCH)]
+    # eval_new['bound_test_15'] = evaluation['15']['b_test'][str(EPOCH)]
+    # eval_new['ppr_train'] = evaluation['ppr_train'][str(EPOCH)]
+    # eval_new['ppr_test'] = evaluation['ppr_test'][str(EPOCH)]
+    #  eval_new = dict()
+    eval_new["nn_train_15"] = 1
+    eval_new['nn_test_15'] = 1
+    eval_new['bound_train_15'] = 1
+    eval_new['bound_test_15'] = 1
+    eval_new['ppr_train'] = 1
+    eval_new['ppr_test'] = 1
+
+    label_color_list = []
+    label_list = []
+    for label in labels:
+        label_color_list.append(color[int(label)])
+        label_list.append(CLASSES[int(label)])
+
+    prediction_list = []
+    prediction = data_provider.get_pred(EPOCH, all_data).argmax(-1)
+
+    for pred in prediction:
+        prediction_list.append(CLASSES[pred])
+    
+    max_iter = (EPOCH_END - EPOCH_START) // EPOCH_PERIOD + 1
+
+    _, conf_diff = timevis.batch_inv_preserve(EPOCH, all_data)
+    current_index = timevis.get_epoch_index(EPOCH)
+
+    new_index = timevis.get_new_index(iteration)
+
+    noisy_data = timevis.noisy_data_index()
+
+    original_labels = timevis.get_original_labels()
+    original_label_list = []
+    for label in original_labels:
+        original_label_list.append(CLASSES[label])
+
+    uncertainty_diversity_tot_dict = {}
+    uncertainty_diversity_tot_dict['uncertainty'] = timevis.get_uncertainty_score(EPOCH)
+    uncertainty_diversity_tot_dict['diversity'] = timevis.get_diversity_score(EPOCH)
+    uncertainty_diversity_tot_dict['tot'] = timevis.get_total_score(EPOCH)
+
+    uncertainty_ranking_list = [i[0] for i in sorted(enumerate(uncertainty_diversity_tot_dict['uncertainty']), key=lambda x: x[1])]
+    diversity_ranking_list = [i[0] for i in sorted(enumerate(uncertainty_diversity_tot_dict['diversity']), key=lambda x: x[1])]
+    tot_ranking_list = [i[0] for i in sorted(enumerate(uncertainty_diversity_tot_dict['tot']), key=lambda x: x[1])]
+    uncertainty_diversity_tot_dict['uncertainty_ranking'] = uncertainty_ranking_list
+    uncertainty_diversity_tot_dict['diversity_ranking'] = diversity_ranking_list
+    uncertainty_diversity_tot_dict['tot_ranking'] = tot_ranking_list
+
+    selected_points = np.arange(data_provider.train_num + data_provider.test_num)
+    for key in predicates.keys():
+        if key == "new_selection":
+            tmp = np.array(timevis.get_new_index(int(predicates[key])))
+        elif key == "label":
+            tmp = np.array(timevis.filter_label(predicates[key]))
+        elif key == "type":
+            tmp = np.array(timevis.filter_type(predicates[key], int(iteration)))
+        else:
+            tmp = np.arange(data_provider.train_num + data_provider.test_num)
+        selected_points = np.intersect1d(selected_points, tmp)
+
+    sys.path.remove(CONTENT_PATH)
+
+
+    return make_response(jsonify({'result': embedding_2d, 'grid_index': grid, 'grid_color': decision_view,
+                                  'label_color_list': label_color_list, 'label_list': label_list,
+                                  'maximum_iteration': max_iter, 'training_data': current_index,
+                                  'testing_data': testing_data_index, 'evaluation': eval_new,
+                                  'prediction_list': prediction_list, 'new_selection': new_index,
+                                  'noisy_data': noisy_data, 'original_label_list': original_label_list,
+                                  'inv_acc_list': conf_diff.tolist(),
+                                  'uncertainty_diversity_tot': uncertainty_diversity_tot_dict,
+                                  "selectedPoints":selected_points.tolist()}), 200)
 
 @app.route('/saveDVIselections', methods=["POST"])
 @cross_origin()
@@ -398,8 +598,8 @@ def save_DVI_selections():
     model = SingleVisualizationModel.SingleVisualizationModel(input_dims=512, output_dims=2, units=256)
     negative_sample_rate = 5
     min_dist = .1
-    _a, _b = find_ab_params(1.0, min_dist)
-    umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a, _b, repulsion_strength=1.0)
+    # _a, _b = find_ab_params(1.0, min_dist)
+    umap_loss_fn = UmapLoss(negative_sample_rate, DEVICE, _a=[1.0], _b=[1.0], repulsion_strength=1.0)
     recon_loss_fn = ReconstructionLoss(beta=1.0)
     criterion = SingleVisLoss(umap_loss_fn, recon_loss_fn, lambd=LAMBDA)
 
@@ -418,16 +618,58 @@ def save_DVI_selections():
 
     return make_response(jsonify({"message":"Save DVI selection succefully!"}), 200)
 
+
+def image_cut_save(path, left, upper, right, lower, save_path):
+    """
+        所截区域图片保存
+    :param path: 图片路径
+    :param left: 区块左上角位置的像素点离图片左边界的距离
+    :param upper：区块左上角位置的像素点离图片上边界的距离
+    :param right：区块右下角位置的像素点离图片左边界的距离
+    :param lower：区块右下角位置的像素点离图片上边界的距离
+     故需满足：lower > upper、right > left
+    :param save_path: 所截图片保存位置
+    """
+    img = Image.open(path)  # 打开图像
+    box = (left, upper, right, lower)
+    roi = img.crop(box)
+    # print('img_stream',img_stream)
+    # 保存截取的图片
+    roi.save(save_path)
+    # readImg(save_path)
+
 @app.route('/sprite', methods=["POST","GET"])
 @cross_origin()
 def sprite_image():
-    path= request.args.get("path")
-    sprite = tf.io.gfile.GFile(path, "rb")
-    encoded_image_string = sprite.read()
-    sprite.close()
-    image_type = "image/png"
-    return Response(encoded_image_string, status=200, mimetype=image_type)
+    index=request.args.get("index")
+    print('index',index)
+    i = int(index)
 
+    pic_path = '/Users/zhangyifan/Downloads/toy_model/resnet18_cifar10/cifar10.png'
+    pic_save_dir_path = '/Users/zhangyifan/Downloads/toy_model/resnet18_cifar10/img/new.png'
+    left, upper, right, lower = 0, 0, 32, 32
+    left =  (i%245)*32
+    upper = round(i/245)*32
+    right = left+32
+    lower = upper+32
+    name = "img" + str(i)
+    pic_save_dir_path = '/Users/zhangyifan/Downloads/toy_model/resnet18_cifar10/img/'+name+'.png'
+    print(left,upper,right,lower,name,pic_save_dir_path)
+    image_cut_save(pic_path, left, upper, right, lower, pic_save_dir_path)
+    img_stream = ''
+    with open(pic_save_dir_path, 'rb') as img_f:
+        img_stream = img_f.read()
+        img_stream = base64.b64encode(img_stream).decode()
+    image_type = "image/png"
+    # print('img_stream',img_stream)
+    return make_response(jsonify({"imgUrl":img_stream}), 200)
+
+@app.route('/json', methods=["POST","GET"])
+@cross_origin()
+def sprite_json():
+    with open('graphic.json', 'r') as f:
+       config = json.load(f)
+    return make_response(jsonify({"imgUrl":config}), 200)
 # if this is the main thread of execution first load the model and then start the server
 if __name__ == "__main__":
     with open('config.json', 'r') as f:
