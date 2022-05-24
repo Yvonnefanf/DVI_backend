@@ -314,7 +314,7 @@ def update_projection():
                                   'label_color_list': label_color_list, 'label_list': label_list,
                                   'maximum_iteration': max_iter, 'training_data': current_index,
                                   'testing_data': testing_data_index, 'evaluation': eval_new,
-                                  'prediction_list': prediction_list, 'new_selection': new_index,
+                                  'prediction_list': prediction_list,
                                   "selectedPoints":selected_points.tolist()}), 200)
 
 # @app.route('/query', methods=["POST"])
@@ -551,7 +551,7 @@ def al_train():
                                   'label_color_list': label_color_list, 'label_list': label_list,
                                   'maximum_iteration': max_iter, 'training_data': current_index,
                                   'testing_data': testing_data_index, 'evaluation': eval_new,
-                                  'prediction_list': prediction_list, 'new_selection': new_index,
+                                  'prediction_list': prediction_list,
                                   "selectedPoints":selected_points.tolist()}), 200)
 
 @app.route('/saveDVIselections', methods=["POST"])
