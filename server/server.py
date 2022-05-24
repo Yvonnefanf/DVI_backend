@@ -295,18 +295,6 @@ def update_projection():
     for label in original_labels:
         original_label_list.append(CLASSES[label])
 
-    uncertainty_diversity_tot_dict = {}
-    uncertainty_diversity_tot_dict['uncertainty'] = timevis.get_uncertainty_score(EPOCH)
-    uncertainty_diversity_tot_dict['diversity'] = timevis.get_diversity_score(EPOCH)
-    uncertainty_diversity_tot_dict['tot'] = timevis.get_total_score(EPOCH)
-
-    uncertainty_ranking_list = [i[0] for i in sorted(enumerate(uncertainty_diversity_tot_dict['uncertainty']), key=lambda x: x[1])]
-    diversity_ranking_list = [i[0] for i in sorted(enumerate(uncertainty_diversity_tot_dict['diversity']), key=lambda x: x[1])]
-    tot_ranking_list = [i[0] for i in sorted(enumerate(uncertainty_diversity_tot_dict['tot']), key=lambda x: x[1])]
-    uncertainty_diversity_tot_dict['uncertainty_ranking'] = uncertainty_ranking_list
-    uncertainty_diversity_tot_dict['diversity_ranking'] = diversity_ranking_list
-    uncertainty_diversity_tot_dict['tot_ranking'] = tot_ranking_list
-
     selected_points = np.arange(data_provider.train_num + data_provider.test_num)
     for key in predicates.keys():
         if key == "new_selection":
@@ -327,47 +315,76 @@ def update_projection():
                                   'maximum_iteration': max_iter, 'training_data': current_index,
                                   'testing_data': testing_data_index, 'evaluation': eval_new,
                                   'prediction_list': prediction_list, 'new_selection': new_index,
-                                  'noisy_data': noisy_data, 'original_label_list': original_label_list,
-                                  'inv_acc_list': conf_diff.tolist(),
-                                  'uncertainty_diversity_tot': uncertainty_diversity_tot_dict,
                                   "selectedPoints":selected_points.tolist()}), 200)
+
+# @app.route('/query', methods=["POST"])
+# @cross_origin()
+# def filter():
+#     res = request.get_json()
+#     if(res['predicates']):
+#         label = res["predicates"]["label"]
+#         conf = res["predicates"]["confidence"]
+
+
+#     # CONTENT_PATH = os.path.normpath(res['content_path'])
+#     # print(string,predicate)
+#     # data =  InputStream(string)
+#     # # lexer
+#     # lexer = MyGrammarLexer(data)
+#     # stream = CommonTokenStream(lexer)
+#     # # parser
+#     # parser = MyGrammarParser(stream)
+#     # tree = parser.expr()
+#     # # Currently this is hardcoded for CIFAR10, changes need to be made in future
+#     # # Error will appear based on some of the queries sent
+#     # model_epochs = [40, 80, 120, 160, 200]
+#     # # evaluator
+#     # listener = MyGrammarPrintListener(model_epochs)
+#     # walker = ParseTreeWalker()
+#     # walker.walk(listener, tree)
+#     # statement = listener.result
+
+#     # sql_engine       = create_engine('mysql+pymysql://xg:password@localhost/dviDB', pool_recycle=3600)
+#     # db_connection    = sql_engine.connect()
+#     # frame           = pd.read_sql(statement, db_connection);
+#     # pd.set_option('display.expand_frame_repr', False)
+#     # db_connection.close()
+#     # result = []
+#     # for _, row in frame.iterrows():
+#     #     for col in frame.columns:
+#     #         result.append(int(row[col]))
+#     result = np.arange(200).tolist()
+#     even = []
+#     for i in range(len(result)):
+#         if result[i]%2==0:
+#           even.append(result[i])    #append增加对象到列表末尾
+#     return make_response(jsonify({"selectedPoints":even}), 200)
 
 @app.route('/query', methods=["POST"])
 @cross_origin()
 def filter():
     res = request.get_json()
-    if(res['predicates']):
-        string = res["predicates"]["label"]
-        predicate = res["predicates"]["confidence"]
+    CONTENT_PATH = os.path.normpath(res['path'])
+    EPOCH = int(res['iteration'])
+    predicates = res["predicates"]
 
+    sys.path.append(CONTENT_PATH)
+    # timevis = initialize_backend(CONTENT_PATH)
 
-    # CONTENT_PATH = os.path.normpath(res['content_path'])
-    # print(string,predicate)
-    # data =  InputStream(string)
-    # # lexer
-    # lexer = MyGrammarLexer(data)
-    # stream = CommonTokenStream(lexer)
-    # # parser
-    # parser = MyGrammarParser(stream)
-    # tree = parser.expr()
-    # # Currently this is hardcoded for CIFAR10, changes need to be made in future
-    # # Error will appear based on some of the queries sent
-    # model_epochs = [40, 80, 120, 160, 200]
-    # # evaluator
-    # listener = MyGrammarPrintListener(model_epochs)
-    # walker = ParseTreeWalker()
-    # walker.walk(listener, tree)
-    # statement = listener.result
+    # training_data_number = timevis.hyperparameters["TRAINING"]["train_num"]
+    # testing_data_number = timevis.hyperparameters["TRAINING"]["test_num"]
 
-    # sql_engine       = create_engine('mysql+pymysql://xg:password@localhost/dviDB', pool_recycle=3600)
-    # db_connection    = sql_engine.connect()
-    # frame           = pd.read_sql(statement, db_connection);
-    # pd.set_option('display.expand_frame_repr', False)
-    # db_connection.close()
-    # result = []
-    # for _, row in frame.iterrows():
-    #     for col in frame.columns:
-    #         result.append(int(row[col]))
+    # current_index = timevis.get_epoch_index(EPOCH)
+    # selected_points = np.arange(training_data_number + testing_data_number)[current_index]
+    # for key in predicates.keys():
+    #     if key == "label":
+    #         tmp = np.array(timevis.filter_label(predicates[key]))
+    #     elif key == "type":
+    #         tmp = np.array(timevis.filter_type(predicates[key], int(EPOCH)))
+    #     else:
+    #         tmp = np.arange(training_data_number + testing_data_number)
+    #     selected_points = np.intersect1d(selected_points, tmp)
+    # sys.path.remove(CONTENT_PATH)
     result = np.arange(200).tolist()
     even = []
     for i in range(len(result)):
@@ -375,6 +392,7 @@ def filter():
           even.append(result[i])    #append增加对象到列表末尾
     return make_response(jsonify({"selectedPoints":even}), 200)
 
+    # return make_response(jsonify({"selectedPoints": selected_points}), 200)
 
 @app.route('/al_query', methods=["POST"])
 @cross_origin()
@@ -508,29 +526,11 @@ def al_train():
     
     max_iter = (EPOCH_END - EPOCH_START) // EPOCH_PERIOD + 1
 
-    _, conf_diff = timevis.batch_inv_preserve(EPOCH, all_data)
     current_index = timevis.get_epoch_index(EPOCH)
 
     new_index = timevis.get_new_index(iteration)
 
-    noisy_data = timevis.noisy_data_index()
-
-    original_labels = timevis.get_original_labels()
-    original_label_list = []
-    for label in original_labels:
-        original_label_list.append(CLASSES[label])
-
-    uncertainty_diversity_tot_dict = {}
-    uncertainty_diversity_tot_dict['uncertainty'] = timevis.get_uncertainty_score(EPOCH)
-    uncertainty_diversity_tot_dict['diversity'] = timevis.get_diversity_score(EPOCH)
-    uncertainty_diversity_tot_dict['tot'] = timevis.get_total_score(EPOCH)
-
-    uncertainty_ranking_list = [i[0] for i in sorted(enumerate(uncertainty_diversity_tot_dict['uncertainty']), key=lambda x: x[1])]
-    diversity_ranking_list = [i[0] for i in sorted(enumerate(uncertainty_diversity_tot_dict['diversity']), key=lambda x: x[1])]
-    tot_ranking_list = [i[0] for i in sorted(enumerate(uncertainty_diversity_tot_dict['tot']), key=lambda x: x[1])]
-    uncertainty_diversity_tot_dict['uncertainty_ranking'] = uncertainty_ranking_list
-    uncertainty_diversity_tot_dict['diversity_ranking'] = diversity_ranking_list
-    uncertainty_diversity_tot_dict['tot_ranking'] = tot_ranking_list
+    # noisy_data = timevis.noisy_data_index()
 
     selected_points = np.arange(data_provider.train_num + data_provider.test_num)
     for key in predicates.keys():
@@ -552,9 +552,6 @@ def al_train():
                                   'maximum_iteration': max_iter, 'training_data': current_index,
                                   'testing_data': testing_data_index, 'evaluation': eval_new,
                                   'prediction_list': prediction_list, 'new_selection': new_index,
-                                  'noisy_data': noisy_data, 'original_label_list': original_label_list,
-                                  'inv_acc_list': conf_diff.tolist(),
-                                  'uncertainty_diversity_tot': uncertainty_diversity_tot_dict,
                                   "selectedPoints":selected_points.tolist()}), 200)
 
 @app.route('/saveDVIselections', methods=["POST"])
@@ -638,30 +635,47 @@ def image_cut_save(path, left, upper, right, lower, save_path):
     roi.save(save_path)
     # readImg(save_path)
 
+# @app.route('/sprite', methods=["POST","GET"])
+# @cross_origin()
+# def sprite_image():
+#     index=request.args.get("index")
+#     print('index',index)
+#     i = int(index)
+
+#     pic_path = '/Users/zhangyifan/Downloads/toy_model/resnet18_cifar10/cifar10.png'
+#     pic_save_dir_path = '/Users/zhangyifan/Downloads/toy_model/resnet18_cifar10/img/new.png'
+#     left, upper, right, lower = 0, 0, 32, 32
+#     left =  (i%245)*32
+#     upper = round(i/245)*32
+#     right = left+32
+#     lower = upper+32
+#     name = "img" + str(i)
+#     pic_save_dir_path = '/Users/zhangyifan/Downloads/toy_model/resnet18_cifar10/img/'+name+'.png'
+#     print(left,upper,right,lower,name,pic_save_dir_path)
+#     image_cut_save(pic_path, left, upper, right, lower, pic_save_dir_path)
+#     img_stream = ''
+#     with open(pic_save_dir_path, 'rb') as img_f:
+#         img_stream = img_f.read()
+#         img_stream = base64.b64encode(img_stream).decode()
+#     image_type = "image/png"
+#     # print('img_stream',img_stream)
+#     return make_response(jsonify({"imgUrl":img_stream}), 200)
+
 @app.route('/sprite', methods=["POST","GET"])
 @cross_origin()
 def sprite_image():
+    path = request.args.get("path")
     index=request.args.get("index")
-    print('index',index)
-    i = int(index)
 
-    pic_path = '/Users/zhangyifan/Downloads/toy_model/resnet18_cifar10/cifar10.png'
-    pic_save_dir_path = '/Users/zhangyifan/Downloads/toy_model/resnet18_cifar10/img/new.png'
-    left, upper, right, lower = 0, 0, 32, 32
-    left =  (i%245)*32
-    upper = round(i/245)*32
-    right = left+32
-    lower = upper+32
-    name = "img" + str(i)
-    pic_save_dir_path = '/Users/zhangyifan/Downloads/toy_model/resnet18_cifar10/img/'+name+'.png'
-    print(left,upper,right,lower,name,pic_save_dir_path)
-    image_cut_save(pic_path, left, upper, right, lower, pic_save_dir_path)
+    CONTENT_PATH = os.path.normpath(path)
+    print('index', index)
+    idx = int(index)
+    pic_save_dir_path = os.path.join(CONTENT_PATH, "sprites", "{}.png".format(idx))
     img_stream = ''
     with open(pic_save_dir_path, 'rb') as img_f:
         img_stream = img_f.read()
         img_stream = base64.b64encode(img_stream).decode()
     image_type = "image/png"
-    # print('img_stream',img_stream)
     return make_response(jsonify({"imgUrl":img_stream}), 200)
 
 @app.route('/json', methods=["POST","GET"])
